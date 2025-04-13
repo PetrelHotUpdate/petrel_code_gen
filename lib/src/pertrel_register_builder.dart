@@ -14,39 +14,64 @@ class PetrelRegisterBuilder
     if (element is ClassElement) {
       final className = element.name;
       final newClassName = className.replaceFirst('_', '');
-      final buffer = StringBuffer();
-      buffer.writeln('part of "$fileName";');
-      buffer.writeln('class $newClassName {');
+
+      final methodParamStringList = <String>[];
+      final registerBuffer = StringBuffer();
+      final methodBuffer = StringBuffer();
 
       // 生成构造函数和字段
-      final fieldsWithAnnotation = <FieldElement>[];
-      for (var field in element.fields) {
-        if (field.metadata
-            .any((m) => m.element?.displayName == 'PetrelRegisterField')) {
-          fieldsWithAnnotation.add(field);
-          final fieldType = field.type.getDisplayString();
-          final fieldName = field.name;
-          buffer.writeln('  final $fieldType $fieldName;');
+      final methodsWithAnnotation = <MethodElement>[];
+      for (var method in element.methods) {
+        if (!method.metadata
+            .any((e) => e.element?.displayName == 'PetrelRegisterMethod')) {
+          continue;
         }
+        methodsWithAnnotation.add(method);
+        final methodType = method.returnType.getDisplayString();
+        final methodName = method.name;
+        final methodParams = method.parameters;
+        methodParamStringList
+            .add('required $methodType Function() $methodName,');
+        registerBuffer.writeln('''
+register('$methodName', (data) {
+      return $methodName();
+    });
+''');
+
+        methodBuffer.writeln('''
+@override
+$methodType $methodName(${methodParams.map((e) => e.type.getDisplayString()).join(', ')}) {
+  return nativeChannelEngine.call(CallMessageChannel(
+    '$methodName',
+    libraryName: libraryName,
+    className: className,
+    arguments: {},
+  ));
+}
+''');
       }
 
       // 生成构造函数
-      final paramList =
-          fieldsWithAnnotation.map((f) => 'required this.${f.name}').join(', ');
-      buffer.writeln('  $newClassName({$paramList});');
+      final paramList = methodParamStringList.join('');
+      String initMethod = '''
+$newClassName({$paramList}) {
+  ${registerBuffer.toString()}
+}
+''';
+      final codeBuffer = StringBuffer();
+      codeBuffer.write('''
+part of "$fileName";
 
-      // 生成 register 方法
-      buffer.writeln('\n  register() {');
-      for (var field in fieldsWithAnnotation) {
-        final fieldName = field.name;
-        buffer
-            .writeln('    nativeChannel.register(\'$fieldName\', $fieldName);');
-      }
-      buffer.writeln('  }');
+class $newClassName extends $className {
+  $initMethod
 
-      buffer.writeln('}');
-      return buffer.toString();
+  ${methodBuffer.toString()}
+}
+''');
+      return codeBuffer.toString();
     }
     return null;
   }
+
+  String _generateMethodParams(List<ParameterElement> params) {}
 }
