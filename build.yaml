@@ -1,0 +1,9 @@
+builders:
+  petrel_register_builder:
+    import: package:petrel_register_code_gen/petrel_register_code_gen.dart
+    builder_factories:
+      - petrelRegisterBuilder
+    build_extensions:
+      .dart: [.r.dart] # Define the input and output file extensions
+    auto_apply: dependents # Apply the builder to dependent packages
+    build_to: source # Generate files in the source directory
