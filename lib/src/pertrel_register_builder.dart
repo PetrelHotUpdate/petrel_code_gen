@@ -1,6 +1,7 @@
 // ignore: depend_on_referenced_packages
 import 'package:analyzer/dart/element/element.dart';
 import 'package:build/build.dart';
+import 'package:path/path.dart';
 import 'package:petrel_register_code_gen/src/annotations.dart';
 import 'package:source_gen/source_gen.dart';
 
@@ -9,21 +10,19 @@ class PetrelRegisterBuilder
   @override
   generateForAnnotatedElement(
       Element element, ConstantReader annotation, BuildStep buildStep) {
+    final fileName = basename(buildStep.inputId.path);
     if (element is ClassElement) {
       final className = element.name;
       final newClassName = className.replaceFirst('_', '');
       final buffer = StringBuffer();
-      buffer.writeln('// 自动生成的代码');
-      buffer.writeln('class $newClassName extends $className {');
+      buffer.writeln('part of "$fileName";');
+      buffer.writeln('class $newClassName {');
 
       // 生成构造函数和字段
       final fieldsWithAnnotation = <FieldElement>[];
-      print('function: ${element.methods.length}');
       for (var field in element.fields) {
-        print('field: ${field.name} ${field.metadata.length}');
-
         if (field.metadata
-            .any((m) => m.element?.name == 'PetrelRegisterField')) {
+            .any((m) => m.element?.displayName == 'PetrelRegisterField')) {
           fieldsWithAnnotation.add(field);
           final fieldType = field.type.getDisplayString();
           final fieldName = field.name;
