@@ -1,5 +1,5 @@
 name: petrel_register_code_gen
-description: A starting point for Dart libraries or applications.
+description: Petrel通道代码生成器
 version: 0.0.1
 homepage: https://github.com/PetrelHotUpdate/petrel_code_gen
 
