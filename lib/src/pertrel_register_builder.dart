@@ -2,7 +2,7 @@
 import 'package:analyzer/dart/element/element.dart';
 import 'package:build/build.dart';
 import 'package:path/path.dart';
-import 'package:petrel_register_code_gen/src/annotations.dart';
+import 'package:petrel_register_code_gen_annotation/petrel_register_code_gen_annotation.dart';
 import 'package:source_gen/source_gen.dart';
 
 class PetrelRegisterBuilder
