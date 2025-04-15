@@ -1,5 +1,6 @@
 // ignore: depend_on_referenced_packages
 import 'package:analyzer/dart/element/element.dart';
+import 'package:analyzer/dart/element/type.dart';
 import 'package:build/build.dart';
 import 'package:path/path.dart';
 import 'package:petrel_register_code_gen_annotation/petrel_register_code_gen_annotation.dart';
@@ -114,7 +115,7 @@ class $newClassName extends $className {
     }
     return '''
 register('$methodName', (channelData) {
-      return $methodName(${buffer.toString()});
+      return $methodName(${buffer.toString()}).then((e) => e.toJson());
 });
     ''';
   }
@@ -123,13 +124,17 @@ register('$methodName', (channelData) {
     final methodName = method.name;
     final params = method.parameters;
     final displayString = method.getDisplayString();
+    final typeArgument = (method.returnType as InterfaceType)
+        .typeArguments
+        .first
+        .getDisplayString();
     print('displayString: $displayString');
     return '''
   @override
   $displayString {
     return call('$methodName', {
       ${params.map((e) => "'${e.name}': ${e.name},").join('')}
-    });
+    }).then((e) => $typeArgument.fromJson(e));
   }
 ''';
   }
