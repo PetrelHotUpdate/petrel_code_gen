@@ -24,11 +24,18 @@ class PetrelRegisterBuilder
     final registerBuffer = StringBuffer();
 
     // 生成构造函数和字段
-    final methodsWithAnnotation = element.methods.where((method) {
+    List<MethodElement> methodsWithAnnotation = element.methods.where((method) {
       return method.metadata.any(
-        (e) => e.element?.displayName == 'PetrelRegisterMethod',
+        (metadata) {
+          final value = metadata.computeConstantValue();
+          if (value == null) return false;
+          final reader = ConstantReader(value);
+          final typeName = reader.objectValue.type?.getDisplayString();
+          print('typeName: $typeName');
+          return typeName == 'PetrelRegisterMethod';
+        },
       );
-    });
+    }).toList();
 
     for (final method in methodsWithAnnotation) {
       final methodType = method.returnType.getDisplayString();
@@ -107,10 +114,37 @@ class $newClassName extends $className {
       String methodName, List<ParameterElement> params) {
     StringBuffer buffer = StringBuffer();
     for (final param in params) {
-      if (param.isNamed) {
-        buffer.write("${param.name}: channelData.data['${param.name}'],");
+      final paramType = param.type;
+      final paramAnnotationReader = param.metadata
+          .map((e) {
+            final value = e.computeConstantValue();
+            if (value == null) return null;
+            final reader = ConstantReader(value);
+            final typeName = reader.objectValue.type?.getDisplayString();
+            if (typeName != 'PetrelRegisterMethodParam') {
+              return null;
+            }
+            return reader;
+          })
+          .whereType<ConstantReader>()
+          .firstOrNull;
+      late String readCode;
+      if (paramType.isDartCoreBool ||
+          paramType.isDartCoreString ||
+          paramType.isDartCoreDouble ||
+          paramType.isDartCoreInt) {
+        readCode = "channelData.data['${param.name}']";
+      } else if (paramAnnotationReader != null) {
+        final value = "channelData.data['${param.name}']";
+        readCode = '${param.type.getDisplayString()}.fromJson($value)';
       } else {
-        buffer.write("channelData.data['${param.name}'],");
+        throw Exception(
+            'Unsupported type: $paramType in $methodName 请使用@PetrelRegisterMethodParam注解支持');
+      }
+      if (param.isNamed) {
+        buffer.write("${param.name}: $readCode,");
+      } else {
+        buffer.write('$readCode,');
       }
     }
     return '''
@@ -128,13 +162,30 @@ register('$methodName', (channelData) {
         .typeArguments
         .first
         .getDisplayString();
-    print('displayString: $displayString');
+    String converterCode = '$typeArgument.fromJson(e)';
+    final customConverter = method.metadata
+        .map((metadata) {
+          final value = metadata.computeConstantValue();
+          if (value == null) return null;
+          final reader = ConstantReader(value);
+          final typeName = reader.objectValue.type?.getDisplayString();
+          if (typeName != 'PetrelRegisterMethod') {
+            return null;
+          }
+          return reader.read('customConverter').stringValue;
+        })
+        .whereType<String>()
+        .firstOrNull;
+    if (customConverter != null && customConverter.isNotEmpty) {
+      converterCode = customConverter;
+    }
+
     return '''
   @override
   $displayString {
     return call('$methodName', {
       ${params.map((e) => "'${e.name}': ${e.name},").join('')}
-    }).then((e) => $typeArgument.fromJson(e));
+    }).then((e) => $converterCode);
   }
 ''';
   }
