@@ -43,7 +43,7 @@ class PetrelRegisterBuilder
       final methodParams = method.parameters;
 
       constructorParamsBuffer.writeln('''
-        required $methodType Function(${_generateHandlerParams(methodParams)}) $methodName,
+$methodType Function(${_generateHandlerParams(methodParams)})? $methodName,
       ''');
       registerBuffer.writeln(_generateRegisterCode(methodName, methodParams));
       methodBuffer.writeln(_generateMethodCode(method));
@@ -148,9 +148,11 @@ class $newClassName extends $className {
       }
     }
     return '''
+if ($methodName != null) {
 register('$methodName', (channelData) {
       return $methodName(${buffer.toString()}).then((e) => e.toJson());
 });
+}
     ''';
   }
 
