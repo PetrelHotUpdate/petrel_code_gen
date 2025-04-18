@@ -132,7 +132,8 @@ class $newClassName extends $className {
       if (paramType.isDartCoreBool ||
           paramType.isDartCoreString ||
           paramType.isDartCoreDouble ||
-          paramType.isDartCoreInt) {
+          paramType.isDartCoreInt ||
+          paramType.isDartCoreMap) {
         readCode = "channelData.data['${param.name}']";
       } else if (paramAnnotationReader != null) {
         final value = "channelData.data['${param.name}']";
