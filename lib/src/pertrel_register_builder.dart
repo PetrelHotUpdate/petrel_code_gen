@@ -1,5 +1,6 @@
 // ignore: depend_on_referenced_packages
 import 'package:analyzer/dart/element/element.dart';
+import 'package:analyzer/dart/element/nullability_suffix.dart';
 import 'package:analyzer/dart/element/type.dart';
 import 'package:build/build.dart';
 import 'package:path/path.dart';
@@ -41,11 +42,24 @@ class PetrelRegisterBuilder
       final methodType = method.returnType.getDisplayString();
       final methodName = method.name;
       final methodParams = method.parameters;
+      bool isOptionalReturnType = false;
+      if (method.returnType is InterfaceType) {
+        final typeArgumentFirst =
+            (method.returnType as InterfaceType).typeArguments.first;
+        final nullabilitySuffix = typeArgumentFirst.nullabilitySuffix;
+        if (nullabilitySuffix == NullabilitySuffix.question) {
+          isOptionalReturnType = true;
+        }
+      }
 
       constructorParamsBuffer.writeln('''
 $methodType Function(${_generateHandlerParams(methodParams)})? $methodName,
       ''');
-      registerBuffer.writeln(_generateRegisterCode(methodName, methodParams));
+      registerBuffer.writeln(_generateRegisterCode(
+        methodName,
+        methodParams,
+        isOptionalReturnType,
+      ));
       methodBuffer.writeln(_generateMethodCode(method));
     }
 
@@ -111,7 +125,10 @@ class $newClassName extends $className {
   }
 
   String _generateRegisterCode(
-      String methodName, List<ParameterElement> params) {
+    String methodName,
+    List<ParameterElement> params,
+    bool isOptionalReturnType,
+  ) {
     StringBuffer buffer = StringBuffer();
     for (final param in params) {
       final paramType = param.type;
@@ -148,10 +165,12 @@ class $newClassName extends $className {
         buffer.write('$readCode,');
       }
     }
+    String toJsonCode =
+        !isOptionalReturnType ? 'e.toJson()' : 'e?.toJson() ?? {}';
     return '''
 if ($methodName != null) {
 register('$methodName', (channelData) {
-      return $methodName(${buffer.toString()}).then((e) => e.toJson());
+      return $methodName(${buffer.toString()}).then((e) => $toJsonCode);
 });
 }
     ''';
@@ -187,7 +206,21 @@ register('$methodName', (channelData) {
   @override
   $displayString {
     return call('$methodName', {
-      ${params.map((e) => "'${e.name}': ${e.name},").join('')}
+      ${params.map((e) {
+      /// 是否是注解对象
+      final isAnnotation = e.metadata.any((e) {
+        final value = e.computeConstantValue();
+        if (value == null) return false;
+        final reader = ConstantReader(value);
+        final typeName = reader.objectValue.type?.getDisplayString();
+        return typeName == 'PetrelRegisterMethodParam';
+      });
+      if (isAnnotation) {
+        return "'${e.name}': ${e.name}.toJson(),";
+      } else {
+        return "'${e.name}': ${e.name},";
+      }
+    }).join('')}
     }).then((e) => $converterCode);
   }
 ''';
