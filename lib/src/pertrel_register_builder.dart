@@ -97,7 +97,11 @@ class $newClassName extends $className {
       final runtimeType = param.runtimeType.toString();
       if (runtimeType == 'DefaultParameterElementImpl') {
         if (param.isNamed) {
-          optionalNamedParams.add(displayString);
+          if (param.isRequired) {
+            optionalNamedParams.add('required $displayString');
+          } else {
+            optionalNamedParams.add(displayString);
+          }
         } else {
           optionalParams.add(displayString);
         }
