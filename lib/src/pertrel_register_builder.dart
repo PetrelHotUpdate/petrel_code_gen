@@ -23,6 +23,7 @@ class PetrelRegisterBuilder
     final constructorParamsBuffer = StringBuffer();
     final methodBuffer = StringBuffer();
     final registerBuffer = StringBuffer();
+    StringBuffer defaultImplBuffer = StringBuffer();
 
     // 生成构造函数和字段
     List<MethodElement> methodsWithAnnotation = element.methods.where((method) {
@@ -61,19 +62,24 @@ $methodType Function(${_generateHandlerParams(methodParams)})? $methodName,
         isOptionalReturnType,
       ));
       methodBuffer.writeln(_generateMethodCode(method));
+      defaultImplBuffer.writeln('''
+@override
+${method.getDisplayString()} async => throw UnimplementedError();
+''');
     }
 
     codeBuffer.writeln('''
 part of "$fileName";
 
-class $newClassName extends $className {
-  $newClassName({
-    ${constructorParamsBuffer.toString()}
-  }) {
+abstract class \$$newClassName extends $className {
+  \$$newClassName() {
     ${registerBuffer.toString()}
   }
 
   ${methodBuffer.toString()}
+}
+class Default${newClassName}Impl extends \$$newClassName {
+  ${defaultImplBuffer.toString()}
 }
 ''');
     return codeBuffer.toString();
@@ -173,18 +179,17 @@ class $newClassName extends $className {
     String toJsonCode =
         !isOptionalReturnType ? 'e.toJson()' : 'e?.toJson() ?? {}';
     return '''
-if ($methodName != null) {
 register('$methodName', (channelData) {
-      return $methodName(${buffer.toString()}).then((e) => $toJsonCode);
+    return _\$$methodName(${buffer.toString()}).then((e) => $toJsonCode);
 });
-}
     ''';
   }
 
   String _generateMethodCode(MethodElement method) {
     final methodName = method.name;
     final params = method.parameters;
-    final displayString = method.getDisplayString();
+    final displayString =
+        method.getDisplayString().replaceFirst(methodName, '_\$$methodName');
     final typeArgument = (method.returnType as InterfaceType)
         .typeArguments
         .first
@@ -208,7 +213,6 @@ register('$methodName', (channelData) {
     }
 
     return '''
-  @override
   $displayString {
     return call('$methodName', {
       ${params.map((e) {
