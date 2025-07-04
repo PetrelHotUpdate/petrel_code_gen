@@ -42,6 +42,9 @@ class PetrelRegisterBuilder
     for (final method in methodsWithAnnotation) {
       final methodType = method.returnType.getDisplayString();
       final methodName = method.name;
+      if (!methodName.startsWith('\$')) {
+        throw Exception('Method name $methodName must start with \$');
+      }
       final methodParams = method.parameters;
       bool isOptionalReturnType = false;
       if (method.returnType is InterfaceType) {
@@ -179,8 +182,8 @@ class Default${newClassName}Impl extends \$$newClassName {
     String toJsonCode =
         !isOptionalReturnType ? 'e.toJson()' : 'e?.toJson() ?? {}';
     return '''
-register('$methodName', (channelData) {
-    return _\$$methodName(${buffer.toString()}).then((e) => $toJsonCode);
+register('\\$methodName', (channelData) {
+    return _$methodName(${buffer.toString()}).then((e) => $toJsonCode);
 });
     ''';
   }
@@ -189,7 +192,7 @@ register('$methodName', (channelData) {
     final methodName = method.name;
     final params = method.parameters;
     final displayString =
-        method.getDisplayString().replaceFirst(methodName, '_\$$methodName');
+        method.getDisplayString().replaceFirst(methodName, '_$methodName');
     final typeArgument = (method.returnType as InterfaceType)
         .typeArguments
         .first
@@ -214,7 +217,7 @@ register('$methodName', (channelData) {
 
     return '''
   $displayString {
-    return call('$methodName', {
+    return call('\\$methodName', {
       ${params.map((e) {
       /// 是否是注解对象
       final isAnnotation = e.metadata.any((e) {
